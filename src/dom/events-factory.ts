@@ -5,7 +5,7 @@ import {
   EventType,
   EventListener,
   CustomListeners,
-  UIEventType,
+  GlobalEventType,
   CustomEventType,
   CustomListenerController,
   EventsUUIDCollection,
@@ -36,10 +36,10 @@ type ControllerEvents = Map<EventType, Array<EventListener<EventType>>>;
 const EVENT_UUID_COLLECTION = "__eventUUIDCollection";
 
 function createCustomListener(
-  type: UIEventType,
+  type: GlobalEventType,
   value: EventListenerCollection<keyof WindowEventMap>
 ): {
-  type: UIEventType;
+  type: GlobalEventType;
   value: EventListenerCollection<keyof WindowEventMap>;
 } {
   return {
@@ -50,7 +50,7 @@ function createCustomListener(
 
 function createEventController(
   ...listeners: Array<{
-    type: UIEventType;
+    type: GlobalEventType;
     value: EventListenerCollection<keyof WindowEventMap>;
   }>
 ): CustomListenerController {
@@ -224,7 +224,7 @@ class EventsFactory implements EventsFactoryData {
 
   private _isInheritEvent(
     node: HTMLElementExtended,
-    eventType: UIEventType,
+    eventType: GlobalEventType,
     eventUUID: UUID | undefined
   ): boolean {
     return (
@@ -235,7 +235,7 @@ class EventsFactory implements EventsFactoryData {
 
   private _configurateEventsUUID(
     node: HTMLElementExtended,
-    eventType: UIEventType,
+    eventType: GlobalEventType,
     uuid: UUID
   ): void {
     const emptyEventsUUID = (): EventsUUIDCollection => ({
@@ -271,7 +271,7 @@ class EventsFactory implements EventsFactoryData {
 
   private _emitListeners<T extends keyof WindowEventMap>(
     ev: WindowEventMap[T],
-    eventType: UIEventType,
+    eventType: GlobalEventType,
     eventUUID: UUID
   ): void {
     const listeners = this._eventsListenerMap
@@ -347,7 +347,7 @@ class EventsFactory implements EventsFactoryData {
   }
 
   public addEvent(
-    eventType: UIEventType,
+    eventType: GlobalEventType,
     node: HTMLElementExtended,
     listener: EventListener<EventType>
   ): void {
@@ -373,7 +373,7 @@ class EventsFactory implements EventsFactoryData {
   }
 
   public addInheritEvent(
-    eventType: UIEventType,
+    eventType: GlobalEventType,
     node: HTMLElementExtended,
     parent: HTMLElementExtended
   ): void {
@@ -382,12 +382,12 @@ class EventsFactory implements EventsFactoryData {
     this._configurateEventsUUID(node, eventType, eventUUID);
   }
 
-  public hasEvent(eventType: UIEventType): boolean {
+  public hasEvent(eventType: GlobalEventType): boolean {
     return this._eventsListenerMap.has(eventType);
   }
 
-  public isCustomEvent(eventType: UIEventType): boolean {
-    return ["mouseenter", "mouseleave", "mousedraghold"].includes(eventType);
+  public isCustomEvent(eventType: GlobalEventType): boolean {
+    return Object.keys(this._customListeners).includes(eventType);
   }
 
   public eventTriggerEmitter(
@@ -413,19 +413,11 @@ class EventsFactory implements EventsFactoryData {
   }
 }
 
-// declare global {
-//   interface Window {
-//     as: any;
-//   }
-// }
-
 const eventsFactory = EventsFactory.getFactory();
-
-// window.as = eventsFactory;
 
 function addListener(
   node: HTMLElementExtended | Document,
-  eventType: UIEventType,
+  eventType: GlobalEventType,
   handler: EventListener<EventType>,
   options?: boolean | AddEventListenerOptions | undefined
 ): void {
@@ -435,7 +427,7 @@ function addListener(
 }
 
 export function on(
-  eventType: UIEventType,
+  eventType: GlobalEventType,
   node: HTMLElementExtended | Document,
   listener: EventListener<EventType>,
   ignoreDocument: boolean = false
@@ -459,7 +451,7 @@ export function on(
 export function off(eventType: EventType, node: HTMLElementExtended): void {}
 
 export function inheritOn(
-  eventType: UIEventType,
+  eventType: GlobalEventType,
   node: HTMLElementExtended,
   parent: HTMLElementExtended
 ): any {

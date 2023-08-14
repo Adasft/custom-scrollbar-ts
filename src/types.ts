@@ -10,12 +10,12 @@ export interface EventsFactoryData {
     listener: EventListener<EventType>
   ): void;
   addInheritEvent(
-    eventType: UIEventType,
+    eventType: GlobalEventType,
     node: HTMLElementExtended,
     parent: HTMLElementExtended
   ): void;
-  hasEvent(eventType: UIEventType): boolean;
-  isCustomEvent(eventType: UIEventType): boolean;
+  hasEvent(eventType: GlobalEventType): boolean;
+  isCustomEvent(eventType: GlobalEventType): boolean;
 }
 
 export interface HTMLElementExtended extends HTMLElement {
@@ -25,7 +25,7 @@ export interface HTMLElementExtended extends HTMLElement {
 // export interface HTMLElementExtended extends HTMLElement, ElementExtended {}
 
 type EventsUUID = {
-  [eventType in UIEventType]?: UUID;
+  [eventType in GlobalEventType]?: UUID;
 };
 
 export type EventsUUIDCollection = EventsUUID & {
@@ -35,7 +35,7 @@ export type EventsUUIDCollection = EventsUUID & {
 export type CustomListenerController = {
   isUse: boolean;
   listeners: Array<{
-    type: UIEventType;
+    type: GlobalEventType;
     value: Array<EventListener<keyof WindowEventMap>>;
   }>;
 };
@@ -49,7 +49,7 @@ export type CustomListeners = {
 export type EventType = keyof WindowEventMap;
 export type CustomEventType = keyof CustomListeners;
 
-export type UIEventType = EventType | CustomEventType;
+export type GlobalEventType = EventType | CustomEventType;
 
 export type EventListener<T extends EventType> = (ev: WindowEventMap[T]) => any;
 
@@ -68,12 +68,12 @@ export type EventInterfaceMap<T extends EventType> = Map<
 >;
 
 export type EventMap = Map<
-  UIEventType,
-  EventInterfaceMap<Exclude<UIEventType, "mousedraghold">>
+  GlobalEventType,
+  EventInterfaceMap<Exclude<GlobalEventType, "mousedraghold">>
 >;
 
 export type ListenerMap = {
-  [eventType in UIEventType]?: EventListener<EventType>;
+  [eventType in GlobalEventType]?: EventListener<EventType>;
 };
 
 export type AttrsMap = {
@@ -82,29 +82,28 @@ export type AttrsMap = {
 
 export type CurrentRefNode = {
   key: string | undefined;
-  value: RefElement | RefTextNode | undefined;
+  value: InteractiveElement | InteractiveTextNode | undefined;
 };
 
-export type RefElementProps = {
+export type InteractiveElementProps = {
   ref?: CurrentRefNode;
   attrs?: AttrsMap;
   on?: ListenerMap;
 };
 
-export const RefElementSymbol = Symbol.for("ref-element");
-export const RefTextNodeSymbol = Symbol.for("ref-text-node");
+export const InteractiveElementSymbol = Symbol.for("int-element");
+export const InteractiveTextNodeSymbol = Symbol.for("int-text-node");
 
-export type RefElement = {
+export type InteractiveElement = {
   readonly node: HTMLElementExtended;
-  readonly $$type: typeof RefElementSymbol;
+  readonly $$type: typeof InteractiveElementSymbol;
   append: (
     inheritListeners: ListenerMap | undefined,
-    ...newChildren: Array<RefElement | RefTextNode>
+    ...newChildren: Array<InteractiveElement | InteractiveTextNode>
   ) => void;
 };
 
-export type RefTextNode = {
+export type InteractiveTextNode = {
   readonly node: Text;
-  readonly text: string;
-  readonly $$type: typeof RefTextNodeSymbol;
+  readonly $$type: typeof InteractiveTextNodeSymbol;
 };

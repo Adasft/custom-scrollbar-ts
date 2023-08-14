@@ -1,14 +1,14 @@
 import { __DOC__ } from "../globals";
 import {
-  RefElement,
-  RefElementSymbol,
-  RefElementProps,
+  InteractiveElement,
+  InteractiveElementSymbol,
+  InteractiveElementProps,
   AttrsMap,
   ListenerMap,
   HTMLElementExtended,
   EventType,
-  RefTextNode,
-  RefTextNodeSymbol,
+  InteractiveTextNode,
+  InteractiveTextNodeSymbol,
   CurrentRefNode,
 } from "../types";
 import { toStr } from "../utilities";
@@ -33,62 +33,66 @@ function addListeners(node: HTMLElementExtended, listeners: ListenerMap): void {
   }
 }
 
-function appendChilds(
+function addEventIfMissing(
   parent: HTMLElementExtended,
-  listeners: ListenerMap | undefined,
-  children: Array<RefElement | RefTextNode>
-): void {
-  function addEventIfMissing(
-    element: HTMLElementExtended,
-    eventType: EventType
+  child: HTMLElementExtended,
+  eventType: EventType
+) {
+  const parentEventsUUIDCollection = parent.__eventUUIDCollection;
+  const eventsUUIDCollection = child.__eventUUIDCollection;
+
+  if (!parentEventsUUIDCollection) return;
+
+  if (
+    (eventsUUIDCollection && !eventsUUIDCollection.hasOwnProperty(eventType)) ||
+    !eventsUUIDCollection
   ) {
-    const parentEventsUUIDCollection = parent.__eventUUIDCollection;
-    const eventsUUIDCollection = element.__eventUUIDCollection;
-
-    if (!parentEventsUUIDCollection) return;
-
-    if (
-      (eventsUUIDCollection &&
-        !eventsUUIDCollection.hasOwnProperty(eventType)) ||
-      !eventsUUIDCollection
-    ) {
-      inheritOn(eventType, element, parent);
-    }
-
-    if (
-      element.__eventUUIDCollection &&
-      (parentEventsUUIDCollection.hasOwnProperty("mouseenter") ||
-        parentEventsUUIDCollection.hasOwnProperty("mouseleave"))
-    ) {
-      element.__eventUUIDCollection.__refEventsUUID.inherit =
-        parentEventsUUIDCollection.__refEventsUUID.own;
-    }
+    inheritOn(eventType, child, parent);
   }
 
-  function appendChildToParent(child: RefElement | RefTextNode) {
-    parent.appendChild(child.node);
-
-    if (child.$$type === RefElementSymbol) {
-      for (const eventType in listeners) {
-        addEventIfMissing(child.node, eventType as EventType);
-      }
-      child.append(listeners);
-    }
-  }
-
-  for (const child of children) {
-    appendChildToParent(child);
+  if (
+    child.__eventUUIDCollection &&
+    (parentEventsUUIDCollection.hasOwnProperty("mouseenter") ||
+      parentEventsUUIDCollection.hasOwnProperty("mouseleave"))
+  ) {
+    child.__eventUUIDCollection.__refEventsUUID.inherit =
+      parentEventsUUIDCollection.__refEventsUUID.own;
   }
 }
 
-function createRefElement(
+function appendChildToParent(
+  parent: HTMLElementExtended,
+  child: InteractiveElement | InteractiveTextNode,
+  listeners: ListenerMap | undefined
+) {
+  parent.appendChild(child.node);
+
+  if (child.$$type === InteractiveElementSymbol) {
+    for (const eventType in listeners) {
+      addEventIfMissing(parent, child.node, eventType as EventType);
+    }
+    child.append(listeners);
+  }
+}
+
+function appendChilds(
+  parent: HTMLElementExtended,
+  listeners: ListenerMap | undefined,
+  children: Array<InteractiveElement | InteractiveTextNode>
+): void {
+  for (const child of children) {
+    appendChildToParent(parent, child, listeners);
+  }
+}
+
+function createInteractiveElement(
   node: HTMLElementExtended,
   listeners: ListenerMap,
-  children: Array<RefElement | RefTextNode>
-): RefElement {
+  children: Array<InteractiveElement | InteractiveTextNode>
+): InteractiveElement {
   function append(
     inheritListeners: ListenerMap | undefined,
-    ...newChildren: Array<RefElement | RefTextNode>
+    ...newChildren: Array<InteractiveElement | InteractiveTextNode>
   ) {
     appendChilds(
       node,
@@ -100,22 +104,24 @@ function createRefElement(
   return {
     node,
     append,
-    $$type: RefElementSymbol,
+    $$type: InteractiveElementSymbol,
   };
 }
 
-function createRefTextNode(node: Text, text: string): RefTextNode {
+function createInteractiveTextNode(node: Text): InteractiveTextNode {
   return {
     node,
-    text,
-    $$type: RefTextNodeSymbol,
+    $$type: InteractiveTextNodeSymbol,
   };
 }
 
-export function createTextNode(value: any, ref?: CurrentRefNode): RefTextNode {
+export function createTextNode(
+  value: any,
+  ref?: CurrentRefNode
+): InteractiveTextNode {
   value = toStr(value);
   const node = __DOC__.createTextNode(value);
-  const refTextNode = createRefTextNode(node, value);
+  const refTextNode = createInteractiveTextNode(node);
 
   if (ref) {
     ref.value = refTextNode;
@@ -130,9 +136,9 @@ export function createRef(key?: string): CurrentRefNode {
 
 export function createElement(
   type: keyof HTMLElementTagNameMap,
-  props?: RefElementProps | null,
-  ...children: Array<RefElement | RefTextNode>
-): RefElement {
+  props?: InteractiveElementProps | null,
+  ...children: Array<InteractiveElement | InteractiveTextNode>
+): InteractiveElement {
   const node = __DOC__.createElement(type) as HTMLElementExtended;
 
   const ref = props?.ref;
@@ -143,11 +149,30 @@ export function createElement(
   addListeners(node, listeners);
   appendChilds(node, listeners, children);
 
-  const refElement = createRefElement(node, listeners, children);
+  const interactiveElement = createInteractiveElement(
+    node,
+    listeners,
+    children
+  );
 
   if (ref) {
-    ref.value = refElement;
+    ref.value = interactiveElement;
   }
 
-  return refElement;
+  return interactiveElement;
 }
+
+// const root = createElement(
+//   "div",
+//   { on: { click: () => {} } },
+//   createElement("span", null, createTextNode("Click in span")),
+//   createElement("button", null, createTextNode("Click in button")),
+//   createElement(
+//     "div",
+//     { on: { mousedown: () => {} } },
+//     createTextNode("Click in div"),
+//     createElement("span", null, createElement("span"), createElement("span"), createElement("span"), createElement("span"), createElement("span")),
+//     createElement("span"),
+//     createElement("span")
+//   )
+// );
