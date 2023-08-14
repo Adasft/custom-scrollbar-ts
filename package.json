@@ -1,6 +1,20 @@
 {
-  "author": "Oskar",
+  "name": "scroll",
+  "version": "1.0.0",
   "description": "",
+  "author": "Oskar",
+  "license": "MIT",
+  "keywords": [],
+  "main": "index.js",
+  "type": "module",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "rollup -w -c"
+  },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.1.0",
     "@rollup/plugin-terser": "^0.4.3",
@@ -11,19 +25,5 @@
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "tslib": "^2.4.1",
     "typescript": "^4.9.4"
-  },
-  "directories": {
-    "test": "test"
-  },
-  "keywords": [],
-  "license": "ISC",
-  "main": "index.js",
-  "name": "scroll",
-  "scripts": {
-    "build": "rollup -c",
-    "test": "echo \"Error: no test specified\" \u0026\u0026 exit 1",
-    "watch": "rollup -w -c"
-  },
-  "type": "module",
-  "version": "1.0.0"
+  }
 }
