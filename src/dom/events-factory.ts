@@ -13,7 +13,7 @@ import {
 } from "../types";
 
 import { UUID } from "crypto";
-import { randomUUID } from "../utilities";
+import { randomUUID, setToMap } from "../utilities";
 import css, { remove } from "./css-factory";
 import { __DOCBODY__, __DOC__ } from "../globals";
 
@@ -91,7 +91,7 @@ class EventsFactory implements EventsFactoryData {
         return;
       }
 
-      this._callListeners(ev, "mouseenter", mouseEnterUUID);
+      this._emitListeners(ev, "mouseenter", mouseEnterUUID);
     },
     mouseLeaveController: (ev) => {
       // Si cacheTargets.entered no tiene elementos, se sale tempranamente de la función para evitar
@@ -159,7 +159,7 @@ class EventsFactory implements EventsFactoryData {
         return;
       }
 
-      this._callListeners(ev, "mouseleave", cacheLeaveEventUUID);
+      this._emitListeners(ev, "mouseleave", cacheLeaveEventUUID);
     },
     mouseHoldController: (ev) => {
       const target = ev.target as HTMLElementExtended;
@@ -185,7 +185,7 @@ class EventsFactory implements EventsFactoryData {
         this._targetsCachedNodes.hold.__eventUUIDCollection;
       const eventUUID = eventsUUIDCollection?.mousedraghold;
 
-      this._callListeners(ev, "mousedraghold", eventUUID as any);
+      this._emitListeners(ev, "mousedraghold", eventUUID as any);
     },
   };
 
@@ -261,20 +261,15 @@ class EventsFactory implements EventsFactoryData {
     addListener(
       __DOC__,
       "click",
-      this.invokeEventDispatcher((ev: any) => {
+      this.eventTriggerEmitter((ev: any) => {
         this._targetsCachedNodes.focused = ev.target as HTMLElementExtended;
       })
     );
 
-    this._setToMap(this._eventsListenerMap, "click", new Map());
+    setToMap(this._eventsListenerMap, "click", new Map());
   }
 
-  private _setToMap<K, V>(map: Map<K, V>, key: K, value: V): Map<K, V> {
-    if (map.has(key)) return map;
-    return map.set(key, value);
-  }
-
-  private _callListeners<T extends keyof WindowEventMap>(
+  private _emitListeners<T extends keyof WindowEventMap>(
     ev: WindowEventMap[T],
     eventType: UIEventType,
     eventUUID: UUID
@@ -318,7 +313,7 @@ class EventsFactory implements EventsFactoryData {
     const eventsUUIDCollection = target.__eventUUIDCollection;
     const eventUUID = eventsUUIDCollection[eventType];
 
-    this._callListeners(ev, eventType, eventUUID as any);
+    this._emitListeners(ev, eventType, eventUUID as any);
   }
 
   private _addCustomEvent(controllers: CustomListenerController): void {
@@ -329,14 +324,14 @@ class EventsFactory implements EventsFactoryData {
         addListener(
           __DOC__,
           type,
-          this.invokeEventDispatcher((ev: any) =>
+          this.eventTriggerEmitter((ev: any) =>
             this._runCustomListeners(ev, type as EventType)
           )
         );
         this._eventsListenerMap.set(type, new Map());
       }
 
-      this._setToMap(this._controllerEvents, type, [])
+      setToMap(this._controllerEvents, type, [])
         .get(type)
         ?.push(...listener.value);
     });
@@ -360,7 +355,7 @@ class EventsFactory implements EventsFactoryData {
       this._configCustomEvents(eventType as CustomEventType);
     }
 
-    const interfaceMap = this._setToMap(
+    const interfaceMap = setToMap(
       this._eventsListenerMap,
       eventType,
       new Map()
@@ -395,12 +390,12 @@ class EventsFactory implements EventsFactoryData {
     return ["mouseenter", "mouseleave", "mousedraghold"].includes(eventType);
   }
 
-  public invokeEventDispatcher(
-    invokerFn?: Function
+  public eventTriggerEmitter(
+    callback?: Function
   ): <T extends keyof WindowEventMap>(ev: WindowEventMap[T]) => void {
     return (ev) => {
-      if (typeof invokerFn === "function") {
-        invokerFn(ev);
+      if (typeof callback === "function") {
+        callback(ev);
       }
       this._handlerEventListener(ev);
     };
@@ -454,7 +449,7 @@ export function on(
     !eventsFactory.hasEvent(eventType) &&
     !eventsFactory.isCustomEvent(eventType)
   ) {
-    addListener(__DOC__, eventType, eventsFactory.invokeEventDispatcher());
+    addListener(__DOC__, eventType, eventsFactory.eventTriggerEmitter());
   }
 
   if (node instanceof HTMLElement)
