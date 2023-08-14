@@ -1,7 +1,7 @@
 import { UUID } from "crypto";
 
 export interface EventsFactoryData {
-  invokeEventDispatcher(
+  eventTriggerEmitter(
     invokerFn?: Function
   ): <T extends keyof WindowEventMap>(ev: WindowEventMap[T]) => void;
   addEvent(
@@ -101,8 +101,6 @@ export type RefElement = {
     inheritListeners: ListenerMap | undefined,
     ...newChildren: Array<RefElement | RefTextNode>
   ) => void;
-  storeChildRef: (...refs: Array<CurrentRefNode>) => void;
-  getChildRef: (key: string) => RefElement | RefTextNode | undefined;
 };
 
 export type RefTextNode = {
