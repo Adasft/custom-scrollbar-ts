@@ -31,3 +31,8 @@ export function toPixel(val: string | number | undefined): string {
 export function toStr(val: any): string {
   return typeof val === "object" ? JSON.stringify(val, null, 4) : String(val);
 }
+
+export function setToMap<K, V>(map: Map<K, V>, key: K, value: V): Map<K, V> {
+  if (map.has(key)) return map;
+  return map.set(key, value);
+}
