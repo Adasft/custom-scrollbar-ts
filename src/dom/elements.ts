@@ -86,43 +86,20 @@ function createRefElement(
   listeners: ListenerMap,
   children: Array<RefElement | RefTextNode>
 ): RefElement {
-  let childRefs: Map<string, RefElement | RefTextNode | undefined> | null =
-    null;
-
-  const append = (
+  function append(
     inheritListeners: ListenerMap | undefined,
     ...newChildren: Array<RefElement | RefTextNode>
-  ) => {
+  ) {
     appendChilds(
       node,
       inheritListeners ?? listeners,
       newChildren.length ? newChildren : children
     );
-  };
-
-  const storeChildRef = (...refs: Array<CurrentRefNode>) => {
-    if (!childRefs)
-      childRefs = new Map<string, RefElement | RefTextNode | undefined>();
-    for (const ref of refs) {
-      if (!ref.key) {
-        throw new Error(
-          "If you want to store a reference to a child node inside the parent, it is essential to assign a key to that reference."
-        );
-      }
-      childRefs.set(ref.key, ref.value);
-    }
-  };
-
-  const getChildRef = (key: string) => {
-    if (!childRefs) return;
-    return childRefs.get(key);
-  };
+  }
 
   return {
     node,
     append,
-    storeChildRef,
-    getChildRef,
     $$type: RefElementSymbol,
   };
 }
