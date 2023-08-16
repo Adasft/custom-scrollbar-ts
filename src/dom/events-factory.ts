@@ -13,14 +13,14 @@ import {
 } from "../types";
 
 import { UUID } from "crypto";
-import { randomUUID, setToMap } from "../utilities";
+import { randomKey, randomUUID, setToMap } from "../utilities";
 import css, { remove } from "./css-factory";
 import { __DOCBODY__, __DOC__ } from "../globals";
 
 type TargetsCachedNodes = {
-  focused: HTMLElementExtended | undefined;
-  entered: HTMLElementExtended | undefined;
-  hold: HTMLElementExtended | undefined;
+  focused: HTMLElementExtended | null;
+  entered: HTMLElementExtended | null;
+  hold: HTMLElementExtended | null;
 };
 
 type Controllers = {
@@ -33,7 +33,7 @@ type Controllers = {
 
 type ControllerEvents = Map<EventType, Array<EventListener<EventType>>>;
 
-const EVENT_UUID_COLLECTION = "__eventUUIDCollection";
+const EVENT_UUID_COLLECTION = "__eventsUUIDCollection";
 
 function createCustomListener(
   type: GlobalEventType,
@@ -66,7 +66,6 @@ class EventsFactory implements EventsFactoryData {
   private readonly _targetsCachedNodes: TargetsCachedNodes;
   private readonly _controllerEvents: ControllerEvents;
   private readonly _customListeners: CustomListeners;
-  private _shouldStopPropagation: boolean = false;
 
   private readonly _controllers: Controllers = {
     mouseEnterController: (ev) => {
@@ -75,95 +74,116 @@ class EventsFactory implements EventsFactoryData {
       // mouseEnterController se detiene inmediatamente. La verificación de la presencia de
       // elementos en cacheTargets.entered evita procesar nuevamente la lógica de la función
       // cuando ya se ha identificado un elemento objetivo en eventos previos.
-      if (this._targetsCachedNodes.entered) return;
-
       const target = ev.target as HTMLElementExtended;
-      const eventsUUIDCollection = target.__eventUUIDCollection;
+      const eventsUUIDCollection = target.__eventsUUIDCollection;
       const mouseEnterUUID = eventsUUIDCollection?.mouseenter;
+      const mouseLeaveUUID = eventsUUIDCollection?.mouseleave;
 
-      // Establecer cacheTargets.entered al objetivo si tiene eventos "mouseenter" o "mouseleave".
-      (eventsUUIDCollection?.mouseenter || eventsUUIDCollection?.mouseleave) &&
-        (this._targetsCachedNodes.entered = target);
+      if (
+        this._targetsCachedNodes.entered ||
+        !(mouseEnterUUID || mouseLeaveUUID)
+      )
+        return;
 
-      // Si no hay evento "mouseenter" o se debe detener la propagación, salir.
-      if (!mouseEnterUUID || this._shouldStopPropagation) {
-        this._shouldStopPropagation = false;
+      this._targetsCachedNodes.entered = target;
+
+      // Si no hay evento "mouseenter" se debe salir.
+      if (!mouseEnterUUID) {
         return;
       }
 
       this._emitListeners(ev, "mouseenter", mouseEnterUUID);
     },
     mouseLeaveController: (ev) => {
-      // Si cacheTargets.entered no tiene elementos, se sale tempranamente de la función para evitar
-      // procesamiento innecesario y optimizar el rendimiento cuando no hay un elemento objetivo válido.
-      if (!this._targetsCachedNodes.entered) return;
-
       const target = ev.target as HTMLElementExtended;
-      const targetEventsUUIDCollection = target.__eventUUIDCollection;
-      const cacheEventsUUIDCollection =
-        this._targetsCachedNodes.entered.__eventUUIDCollection;
-      const targetEnterEventUUID = targetEventsUUIDCollection?.mouseenter;
-      const targetLeaveEventUUID = targetEventsUUIDCollection?.mouseleave;
-      const cacheEnterEventUUID = cacheEventsUUIDCollection?.mouseenter;
-      const cacheLeaveEventUUID = cacheEventsUUIDCollection?.mouseleave;
 
-      // Si el UUID del evento "leave" del elemento en caché es idéntico al UUID del evento "leave" del objetivo,
-      // y además el UUID del evento "enter" del elemento en caché coincide con el del evento "enter" del objetivo,
-      // se finaliza la ejecución de la función. Esta situación indica que el cursor del mouse se encuentra dentro
-      // del mismo elemento que tiene el evento "MouseEnter" o "MouseLeave", lo que implica que no es necesario
-      // invocar los controladores de eventos.
-      if (
-        cacheLeaveEventUUID === targetLeaveEventUUID &&
-        cacheEnterEventUUID === targetEnterEventUUID
-      ) {
+      const enteredCache = this._targetsCachedNodes.entered;
+      const targetEvents = target.__eventsUUIDCollection;
+      const cacheEvents = enteredCache?.__eventsUUIDCollection;
+      const targetEnterEventUUID = targetEvents?.mouseenter;
+      const targetLeaveEventUUID = targetEvents?.mouseleave;
+      const cacheEnterEventUUID = cacheEvents?.mouseenter;
+      const cacheLeaveEventUUID = cacheEvents?.mouseleave;
+
+      // Si cacheTargets.entered no tiene elementos o el objetivo es el mismo, salir tempranamente.
+      if (!enteredCache || target === enteredCache) {
         return;
       }
 
-      // Determinar si el evento mouseenter se hereda en el elemento objetivo
-      const isInheritingMouseEnter = this._isInheritEvent(
-        target,
-        "mouseenter",
-        targetEnterEventUUID
-      );
-      // Determinar si el evento mouseleave se hereda en el elemento objetivo
-      const isInheritingMouseLeave = this._isInheritEvent(
-        target,
-        "mouseleave",
-        targetLeaveEventUUID
-      );
-
-      this._targetsCachedNodes.entered = undefined;
-
-      const cacheInheritUUID =
-        cacheEventsUUIDCollection?.__refEventsUUID.inherit;
-      const cacheOwnUUID = cacheEventsUUIDCollection?.__refEventsUUID.own;
-      const targetOwnUUID = targetEventsUUIDCollection?.__refEventsUUID.own;
-      const targetInheritUUID =
-        targetEventsUUIDCollection?.__refEventsUUID.inherit;
-
-      // Verificar si la propagación es de hijo a padre
-      if (
-        cacheInheritUUID === targetOwnUUID ||
-        (cacheInheritUUID === targetInheritUUID && !isInheritingMouseEnter)
-      ) {
-        this._shouldStopPropagation = true;
-      }
-
-      // Verificar si la propagación es de padre a hijo
-      if (
-        !cacheLeaveEventUUID ||
-        cacheLeaveEventUUID === targetLeaveEventUUID ||
-        cacheOwnUUID === targetInheritUUID ||
-        (cacheInheritUUID === targetInheritUUID && isInheritingMouseLeave)
-      ) {
+      // Verificar si el objetivo actual tiene colección de eventos y si no es un nodo capturador.
+      if (!targetEvents?.eventCaptureKeys) {
+        if (cacheLeaveEventUUID) {
+          this._targetsCachedNodes.entered = null;
+          this._emitListeners(ev, "mouseleave", cacheLeaveEventUUID);
+        }
         return;
       }
 
-      this._emitListeners(ev, "mouseleave", cacheLeaveEventUUID);
+      const targetRootCapture = targetEvents.eventCaptureKeys.root;
+      const cacheRootCapture = cacheEvents?.eventCaptureKeys?.root;
+
+      // Comprobar si las capturas de raíz son diferentes.
+      if (cacheRootCapture !== targetRootCapture) {
+        if (cacheLeaveEventUUID) {
+          this._emitListeners(ev, "mouseleave", cacheLeaveEventUUID);
+        }
+        if (targetEnterEventUUID) {
+          this._targetsCachedNodes.entered = null;
+        }
+        return;
+      }
+
+      const inheritedCapturesTarget =
+        targetEvents.eventCaptureKeys.inheritedCaptures;
+      const ownCaptureCache = cacheEvents?.eventCaptureKeys?.ownCapture;
+      const inheritedCapturesCache =
+        cacheEvents?.eventCaptureKeys?.inheritedCaptures;
+
+      // Verificar capturas de padre a hijo.
+      if (inheritedCapturesTarget.has(ownCaptureCache ?? "")) {
+        if (
+          !targetEnterEventUUID ||
+          targetEnterEventUUID === cacheEnterEventUUID
+        ) {
+          this._targetsCachedNodes.entered = target;
+          return;
+        }
+        this._targetsCachedNodes.entered = null;
+      } else if (
+        inheritedCapturesCache?.has(targetEvents.eventCaptureKeys.ownCapture)
+      ) {
+        this._targetsCachedNodes.entered = target;
+        if (
+          !cacheLeaveEventUUID ||
+          cacheLeaveEventUUID === targetLeaveEventUUID
+        ) {
+          return;
+        }
+        this._emitListeners(ev, "mouseleave", cacheLeaveEventUUID);
+      } else {
+        // Caso de nodo hijo a hijo.
+        cacheLeaveEventUUID &&
+          !this._isInheritEvent(
+            enteredCache,
+            "mouseleave",
+            cacheLeaveEventUUID
+          ) &&
+          this._emitListeners(ev, "mouseleave", cacheLeaveEventUUID);
+
+        if (
+          targetEnterEventUUID &&
+          !this._isInheritEvent(target, "mouseenter", targetEnterEventUUID)
+        ) {
+          this._targetsCachedNodes.entered = null;
+          return;
+        }
+
+        this._targetsCachedNodes.entered = target;
+      }
     },
     mouseHoldController: (ev) => {
       const target = ev.target as HTMLElementExtended;
-      const eventUUID = target.__eventUUIDCollection?.mousedraghold;
+      const eventUUID = target.__eventsUUIDCollection?.mousedraghold;
 
       if (!eventUUID) return;
 
@@ -176,13 +196,13 @@ class EventsFactory implements EventsFactoryData {
 
       remove("userSelect").from(__DOCBODY__);
 
-      this._targetsCachedNodes.hold = undefined;
+      this._targetsCachedNodes.hold = null;
     },
     mouseDragController: (ev) => {
       if (!this._targetsCachedNodes.hold) return;
 
       const eventsUUIDCollection =
-        this._targetsCachedNodes.hold.__eventUUIDCollection;
+        this._targetsCachedNodes.hold.__eventsUUIDCollection;
       const eventUUID = eventsUUIDCollection?.mousedraghold;
 
       this._emitListeners(ev, "mousedraghold", eventUUID as any);
@@ -192,9 +212,9 @@ class EventsFactory implements EventsFactoryData {
   private constructor() {
     this._eventsListenerMap = new Map();
     this._targetsCachedNodes = {
-      focused: undefined,
-      entered: undefined,
-      hold: undefined,
+      focused: null,
+      entered: null,
+      hold: null,
     };
     this._controllerEvents = new Map();
 
@@ -228,7 +248,7 @@ class EventsFactory implements EventsFactoryData {
     eventUUID: UUID | undefined
   ): boolean {
     return (
-      this._eventsListenerMap.get(eventType)?.get(eventUUID as UUID)?.node ===
+      this._eventsListenerMap.get(eventType)?.get(eventUUID as UUID)?.node !==
       node
     );
   }
@@ -236,14 +256,28 @@ class EventsFactory implements EventsFactoryData {
   private _configurateEventsUUID(
     node: HTMLElementExtended,
     eventType: GlobalEventType,
-    uuid: UUID
+    uuid: UUID,
+    parentRootCaptureKey: string | null = null,
+    parentInheritedCaptureKey: Set<string> | null = null,
+    parentOwnCaptureKey: string | null = null
   ): void {
-    const emptyEventsUUID = (): EventsUUIDCollection => ({
-      __refEventsUUID: { inherit: undefined, own: randomUUID() },
+    const isMouseEnterOrLeaveEvent =
+      eventType === "mouseenter" || eventType === "mouseleave";
+    const createEventCapture = () => ({
+      root: randomKey(),
+      inheritedCaptures: new Set<string>(),
+      ownCapture: randomKey(),
     });
-    const eventsUUIDCollection = emptyEventsUUID();
-
     if (!node.hasOwnProperty(EVENT_UUID_COLLECTION)) {
+      // console.log(isMouseEnterOrLeaveEvent, node);
+      // console.log({ eventType, node });
+      // console.log("asdasdas");
+      const eventsUUIDCollection: EventsUUIDCollection = {
+        eventCaptureKeys: isMouseEnterOrLeaveEvent
+          ? createEventCapture()
+          : null,
+      };
+
       Object.defineProperty(node, EVENT_UUID_COLLECTION, {
         value: eventsUUIDCollection,
         enumerable: false,
@@ -252,7 +286,53 @@ class EventsFactory implements EventsFactoryData {
       });
     }
 
-    (node.__eventUUIDCollection ?? eventsUUIDCollection)[eventType] = uuid;
+    /**
+     * div -> mouseenter.123 { own: key1, parent: null }
+     *    div -> mouseenter.098 { own: key2, parent: [key1] }
+     *      div -> mouseenter.098, mouseleave.456 { own: key3, parent: [key1, key2] }
+     *        div -> { own: key45, [key1, key2, key3] }
+     *      div -> mouseenter.098, mouseleave.735 { own: key3, parent: [key1, key2] }
+     *
+     * div -> mouseenter.723 { own: key9, parent: null }
+     * div -> mouseenter.549 { own: key44, parent: null }
+     *
+     *
+     * div -> mouseenter { root: 1, own: key1, parent: [key23, key67] }
+     *    div -> null
+     *
+     *  cache.own === target.parent -> parent to child
+     *  cache.parent === target.own -> child to parent
+     *  else -> child to child
+     */
+
+    const eventsUUIDCollection = node.__eventsUUIDCollection;
+
+    if (!eventsUUIDCollection) return;
+
+    if (isMouseEnterOrLeaveEvent && !eventsUUIDCollection.eventCaptureKeys) {
+      eventsUUIDCollection.eventCaptureKeys = createEventCapture();
+    }
+
+    if (
+      eventsUUIDCollection.eventCaptureKeys &&
+      isMouseEnterOrLeaveEvent &&
+      parentRootCaptureKey &&
+      parentInheritedCaptureKey &&
+      parentOwnCaptureKey
+    ) {
+      eventsUUIDCollection.eventCaptureKeys.root = parentRootCaptureKey;
+      eventsUUIDCollection.eventCaptureKeys.inheritedCaptures.add(
+        parentOwnCaptureKey
+      );
+
+      for (const key of parentInheritedCaptureKey.keys()) {
+        eventsUUIDCollection.eventCaptureKeys.inheritedCaptures.add(key);
+      }
+    }
+
+    if (!eventsUUIDCollection.hasOwnProperty(eventType)) {
+      eventsUUIDCollection[eventType] = uuid;
+    }
   }
 
   private _addControllerFocusedNode(): void {
@@ -286,7 +366,7 @@ class EventsFactory implements EventsFactoryData {
           }));
   }
 
-  private _runCustomListeners<T extends keyof WindowEventMap>(
+  private _emitCustomListeners<T extends keyof WindowEventMap>(
     ev: WindowEventMap[T],
     eventType: EventType
   ): void {
@@ -304,13 +384,10 @@ class EventsFactory implements EventsFactoryData {
         : (ev.target as HTMLElementExtended);
     const eventType = ev.type as EventType;
 
-    if (
-      target === undefined ||
-      typeof target.__eventUUIDCollection === "undefined"
-    )
-      return;
+    if (target === null) return;
 
-    const eventsUUIDCollection = target.__eventUUIDCollection;
+    const eventsUUIDCollection = target.__eventsUUIDCollection;
+    // @ts-ignore
     const eventUUID = eventsUUIDCollection[eventType];
 
     this._emitListeners(ev, eventType, eventUUID as any);
@@ -325,7 +402,7 @@ class EventsFactory implements EventsFactoryData {
           __DOC__,
           type,
           this.eventTriggerEmitter((ev: any) =>
-            this._runCustomListeners(ev, type as EventType)
+            this._emitCustomListeners(ev, type as EventType)
           )
         );
         this._eventsListenerMap.set(type, new Map());
@@ -360,7 +437,7 @@ class EventsFactory implements EventsFactoryData {
       eventType,
       new Map()
     ).get(eventType);
-    const eventUUID = node?.__eventUUIDCollection?.[eventType];
+    const eventUUID = node?.__eventsUUIDCollection?.[eventType];
     const hasNode = eventUUID && interfaceMap?.has(eventUUID);
 
     if (!hasNode) {
@@ -377,9 +454,25 @@ class EventsFactory implements EventsFactoryData {
     node: HTMLElementExtended,
     parent: HTMLElementExtended
   ): void {
-    const eventUUID = parent?.__eventUUIDCollection?.[eventType];
-    if (typeof eventUUID === "undefined") return;
-    this._configurateEventsUUID(node, eventType, eventUUID);
+    const parentEventsUUIDCollection = parent?.__eventsUUIDCollection;
+    const eventUUID = parentEventsUUIDCollection?.[eventType];
+    if (!parentEventsUUIDCollection || !eventUUID) return;
+
+    const parentRootCaptureKey =
+      parentEventsUUIDCollection.eventCaptureKeys?.root;
+    const parentInheritedCaptureKey =
+      parentEventsUUIDCollection.eventCaptureKeys?.inheritedCaptures;
+    const parentOwnCaptureKey =
+      parentEventsUUIDCollection.eventCaptureKeys?.ownCapture;
+
+    this._configurateEventsUUID(
+      node,
+      eventType,
+      eventUUID,
+      parentRootCaptureKey,
+      parentInheritedCaptureKey,
+      parentOwnCaptureKey
+    );
   }
 
   public hasEvent(eventType: GlobalEventType): boolean {
@@ -394,11 +487,28 @@ class EventsFactory implements EventsFactoryData {
     callback?: Function
   ): <T extends keyof WindowEventMap>(ev: WindowEventMap[T]) => void {
     return (ev) => {
+      if (
+        !(ev.target as HTMLElementExtended).__eventsUUIDCollection &&
+        !(ev instanceof KeyboardEvent)
+      )
+        return;
       if (typeof callback === "function") {
         callback(ev);
       }
       this._handlerEventListener(ev);
     };
+  }
+
+  public removeEvent(
+    eventType: GlobalEventType,
+    node: HTMLElementExtended,
+    listener?: EventListener<EventType>
+  ): boolean {
+    if (!this._eventsListenerMap.has(eventType)) return false;
+
+    console.log(this._eventsListenerMap);
+
+    return true;
   }
 
   public static getFactory(): EventsFactory {
@@ -448,7 +558,13 @@ export function on(
     eventsFactory.addEvent(eventType, node, listener);
 }
 
-export function off(eventType: EventType, node: HTMLElementExtended): void {}
+export function off(
+  eventType: GlobalEventType,
+  node: HTMLElementExtended,
+  listener?: EventListener<EventType>
+): void {
+  eventsFactory.removeEvent(eventType, node, listener);
+}
 
 export function inheritOn(
   eventType: GlobalEventType,
