@@ -33,43 +33,16 @@ function addListeners(node: HTMLElementExtended, listeners: ListenerMap): void {
   }
 }
 
-function addEventIfMissing(
-  parent: HTMLElementExtended,
-  child: HTMLElementExtended,
-  eventType: EventType
-) {
-  const parentEventsUUIDCollection = parent.__eventUUIDCollection;
-  const eventsUUIDCollection = child.__eventUUIDCollection;
-
-  if (!parentEventsUUIDCollection) return;
-
-  if (
-    (eventsUUIDCollection && !eventsUUIDCollection.hasOwnProperty(eventType)) ||
-    !eventsUUIDCollection
-  ) {
-    inheritOn(eventType, child, parent);
-  }
-
-  if (
-    child.__eventUUIDCollection &&
-    (parentEventsUUIDCollection.hasOwnProperty("mouseenter") ||
-      parentEventsUUIDCollection.hasOwnProperty("mouseleave"))
-  ) {
-    child.__eventUUIDCollection.__refEventsUUID.inherit =
-      parentEventsUUIDCollection.__refEventsUUID.own;
-  }
-}
-
 function appendChildToParent(
   parent: HTMLElementExtended,
   child: InteractiveElement | InteractiveTextNode,
-  listeners: ListenerMap | undefined
+  listeners: ListenerMap | null
 ) {
   parent.appendChild(child.node);
 
   if (child.$$type === InteractiveElementSymbol) {
     for (const eventType in listeners) {
-      addEventIfMissing(parent, child.node, eventType as EventType);
+      inheritOn(eventType as EventType, child.node, parent);
     }
     child.append(listeners);
   }
@@ -77,7 +50,7 @@ function appendChildToParent(
 
 function appendChilds(
   parent: HTMLElementExtended,
-  listeners: ListenerMap | undefined,
+  listeners: ListenerMap | null,
   children: Array<InteractiveElement | InteractiveTextNode>
 ): void {
   for (const child of children) {
@@ -91,7 +64,7 @@ function createInteractiveElement(
   children: Array<InteractiveElement | InteractiveTextNode>
 ): InteractiveElement {
   function append(
-    inheritListeners: ListenerMap | undefined,
+    inheritListeners: ListenerMap | null,
     ...newChildren: Array<InteractiveElement | InteractiveTextNode>
   ) {
     appendChilds(
@@ -131,7 +104,7 @@ export function createTextNode(
 }
 
 export function createRef(key?: string): CurrentRefNode {
-  return { key, value: undefined };
+  return { key: key ?? null, value: null };
 }
 
 export function createElement(
