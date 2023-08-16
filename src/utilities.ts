@@ -10,6 +10,10 @@ export function randomUUID(): UUID {
   return crypto.randomUUID() as UUID;
 }
 
+export function randomKey(): string {
+  return Math.random().toString(36).slice(2);
+}
+
 export function isDef(val: any): boolean {
   return val !== undefined && val !== null;
 }
