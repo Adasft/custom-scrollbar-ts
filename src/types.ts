@@ -19,7 +19,7 @@ export interface EventsFactoryData {
 }
 
 export interface HTMLElementExtended extends HTMLElement {
-  readonly __eventUUIDCollection?: EventsUUIDCollection;
+  readonly __eventsUUIDCollection?: EventsUUIDCollection;
 }
 
 // export interface HTMLElementExtended extends HTMLElement, ElementExtended {}
@@ -29,7 +29,11 @@ type EventsUUID = {
 };
 
 export type EventsUUIDCollection = EventsUUID & {
-  __refEventsUUID: { inherit: UUID | undefined; own: UUID | undefined };
+  eventCaptureKeys: {
+    inheritedCaptures: Set<string>;
+    ownCapture: string;
+    root: string;
+  } | null;
 };
 
 export type CustomListenerController = {
@@ -81,8 +85,8 @@ export type AttrsMap = {
 };
 
 export type CurrentRefNode = {
-  key: string | undefined;
-  value: InteractiveElement | InteractiveTextNode | undefined;
+  key: string | null;
+  value: InteractiveElement | InteractiveTextNode | null;
 };
 
 export type InteractiveElementProps = {
@@ -98,7 +102,7 @@ export type InteractiveElement = {
   readonly node: HTMLElementExtended;
   readonly $$type: typeof InteractiveElementSymbol;
   append: (
-    inheritListeners: ListenerMap | undefined,
+    inheritListeners: ListenerMap | null,
     ...newChildren: Array<InteractiveElement | InteractiveTextNode>
   ) => void;
 };
