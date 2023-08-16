@@ -1,7 +1,7 @@
 import { toPixel, toSnakeCase } from "../utilities";
 
 export interface CSSStyler {
-  from(target: HTMLElement | undefined | null): void;
+  from(target: HTMLElement | null): void;
   toStr(): string;
 }
 
@@ -15,90 +15,112 @@ export type CSSCustomProperties = {
   [key: CSSCustomProperty]: string | number;
 };
 
+type CSSRules = CSSStylesRules | CSSCustomProperties;
+
 const enum CSSTypeDeclaration {
   NORMAL,
   CUSTOM,
   DELETE,
 }
 
-class CSSStylerFactory implements CSSStyler {
-  private static _instance: CSSStylerFactory;
-  private _styles: CSSStylesRules = {};
-  private _customProperties: CSSCustomProperties = {};
-  private _removedRules: Array<keyof CSSStylesRules> = [];
+class CSSInlineStyleFactory implements CSSStyler {
+  private static _instance: CSSInlineStyleFactory;
+  private _styleVariations: CSSRules | Array<keyof CSSRules> | null = null;
   private _declaredType: CSSTypeDeclaration = CSSTypeDeclaration.NORMAL;
 
   private constructor() {}
 
   private _getRules() {
     const isCustom = this._declaredType === CSSTypeDeclaration.CUSTOM;
-    const isGoingDelete = this._declaredType === CSSTypeDeclaration.DELETE;
-    const properties = isCustom ? this._customProperties : this._styles;
-    const rules = (
-      isGoingDelete ? this._removedRules : Object.keys(properties)
-    ) as Array<keyof typeof properties>;
+    const isDelete = this._declaredType === CSSTypeDeclaration.DELETE;
+    const styleVariations = this._styleVariations;
+    const rules =
+      (styleVariations &&
+        (Array.isArray(styleVariations)
+          ? styleVariations
+          : (Object.keys(styleVariations) as Array<
+              keyof typeof styleVariations
+            >))) ||
+      [];
 
-    return { isCustom, isGoingDelete, properties, rules };
+    return { isCustom, isDelete, rules };
   }
 
-  public static Styler(): CSSStylerFactory {
-    if (!CSSStylerFactory._instance) {
-      CSSStylerFactory._instance = new CSSStylerFactory();
+  private _getRuleValue(rule: string): string | number {
+    if (!this._styleVariations || Array.isArray(this._styleVariations))
+      return "";
+
+    return this._styleVariations[rule as keyof CSSRules] ?? "";
+  }
+
+  public static getFactory(): CSSInlineStyleFactory {
+    if (!CSSInlineStyleFactory._instance) {
+      CSSInlineStyleFactory._instance = new CSSInlineStyleFactory();
     }
-    return CSSStylerFactory._instance;
+    return CSSInlineStyleFactory._instance;
   }
 
   public declareStyles(styles: CSSStylesRules): void {
-    this._styles = styles;
+    this._styleVariations = styles;
     this._declaredType = CSSTypeDeclaration.NORMAL;
   }
 
   public declareVar(customProperties: CSSCustomProperties): void {
-    this._customProperties = customProperties;
+    this._styleVariations = customProperties;
     this._declaredType = CSSTypeDeclaration.CUSTOM;
   }
 
-  public declareRemovedStyles(rules: Array<keyof CSSStylesRules>): void {
-    this._removedRules = rules;
+  public declareRemovedStyles(rules: Array<keyof CSSRules>): void {
+    this._styleVariations = rules;
     this._declaredType = CSSTypeDeclaration.DELETE;
   }
 
   public from(target: HTMLElement | null): void {
     if (!target) return;
 
-    const { isCustom, isGoingDelete, properties, rules } = this._getRules();
+    const { isCustom, isDelete, rules } = this._getRules();
 
-    rules.forEach((prop) => {
-      isGoingDelete
-        ? target.style.removeProperty(toSnakeCase(prop))
+    if (rules.length === 0) return;
+
+    for (const rule of rules) {
+      isDelete
+        ? target.style.removeProperty(toSnakeCase(rule))
         : target.style.setProperty(
-            (isCustom ? "--" : "") + toSnakeCase(prop),
-            toPixel(properties[prop])
+            (isCustom ? "--" : "") + toSnakeCase(rule),
+            toPixel(rule as string)
           );
-    });
+    }
+
+    this._styleVariations = null;
   }
 
   public toStr(): string {
-    const { properties, isGoingDelete, rules } = this._getRules();
+    const { isDelete, rules } = this._getRules();
 
-    return isGoingDelete
-      ? String(this._removedRules)
-      : rules.reduce((acc, style) => {
-          return `${String(acc)}${toSnakeCase(style)}:${toPixel(
-            properties[style]
+    if (rules.length === 0) return "";
+
+    const str = isDelete
+      ? String(rules)
+      : rules.reduce((acc, rule) => {
+          return `${String(acc)}${toSnakeCase(rule)}:${toPixel(
+            this._getRuleValue(rule as string)
           )};`;
         }, "");
+
+    this._styleVariations = null;
+
+    return str;
   }
 }
 
-const styler = CSSStylerFactory.Styler();
+const styler = CSSInlineStyleFactory.getFactory();
 
 export function setCustom(customProperties: CSSCustomProperties): CSSStyler {
   styler.declareVar(customProperties);
   return styler;
 }
 
-export function remove(...rules: Array<keyof CSSStylesRules>): CSSStyler {
+export function remove(...rules: Array<keyof CSSRules>): CSSStyler {
   styler.declareRemovedStyles(rules);
   return styler;
 }
