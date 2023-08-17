@@ -36,7 +36,7 @@ export type EventCapture = {
 
 export type EventsDataCollection = EventsUUID & {
   _eventCaptureKeys: EventCapture | null;
-  _uniqueNodeEventId: UUID;
+  _uniqueNodeEventKey: string;
   _cbArgs: { [key: string]: Array<any> } | null;
 };
 
@@ -70,7 +70,7 @@ export type CallbackEventBundle = {
 };
 
 export type EventListener<T extends EventType> = {
-  (ev: WindowEventMap[T]): any;
+  (ev: WindowEventMap[T], ...args: any): any;
   _cbEventBundle?: CallbackEventBundle;
   _args?: Array<any>;
 };
@@ -80,7 +80,7 @@ export type EventListenerCollection<T extends EventType> = Array<
 >;
 
 export type EventInterface<T extends EventType> = {
-  node: HTMLElementExtended;
+  eventNodeKey: string;
   listeners: EventListenerCollection<T>;
 };
 
