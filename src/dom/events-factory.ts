@@ -42,7 +42,7 @@ const EVENT_DATA_COLLECTION = "_eventsDataCollection";
 
 function createCustomListener(
   type: GlobalEventType,
-  value: EventListenerCollection<keyof WindowEventMap>
+  value: EventListenerCollection<keyof WindowEventMap>,
 ): CustomListener {
   return {
     type,
@@ -95,7 +95,7 @@ class EventsFactory implements EventsFactoryData {
         ev,
         this._targetsCachedNodes.entered,
         "mouseenter",
-        mouseEnterUUID
+        mouseEnterUUID,
       );
     },
     mouseLeaveController: (ev) => {
@@ -120,7 +120,7 @@ class EventsFactory implements EventsFactoryData {
         enteredCache,
         target,
         targetEvents,
-        cacheEvents
+        cacheEvents,
       );
     },
     mouseHoldController: (ev) => {
@@ -151,14 +151,14 @@ class EventsFactory implements EventsFactoryData {
         ev,
         this._targetsCachedNodes.hold,
         "mousedraghold",
-        eventUUID as any
+        eventUUID as any,
       );
     },
   };
 
   private _handleNonCapturingNode(
     ev: WindowEventMap[EventType],
-    enteredCache: HTMLElementExtended
+    enteredCache: HTMLElementExtended,
   ): void {
     const cacheLeaveEventUUID = enteredCache._eventsDataCollection?.mouseleave;
 
@@ -173,7 +173,7 @@ class EventsFactory implements EventsFactoryData {
     enteredCache: HTMLElementExtended,
     target: HTMLElementExtended,
     targetEvents: EventsDataCollection,
-    cacheEvents: EventsDataCollection | undefined
+    cacheEvents: EventsDataCollection | undefined,
   ): void {
     const targetRootCapture = targetEvents._eventCaptureKeys?.root;
     const cacheRootCapture = cacheEvents?._eventCaptureKeys?.root;
@@ -189,14 +189,14 @@ class EventsFactory implements EventsFactoryData {
       enteredCache,
       target,
       targetEvents,
-      cacheEvents
+      cacheEvents,
     );
   }
 
   private _handleDifferentRootCaptures(
     ev: WindowEventMap[EventType],
     enteredCache: HTMLElementExtended,
-    targetEvents: EventsDataCollection
+    targetEvents: EventsDataCollection,
   ): void {
     const cacheLeaveEventUUID = enteredCache._eventsDataCollection?.mouseleave;
 
@@ -214,7 +214,7 @@ class EventsFactory implements EventsFactoryData {
     enteredCache: HTMLElementExtended,
     target: HTMLElementExtended,
     targetEvents: EventsDataCollection,
-    cacheEvents: EventsDataCollection | undefined
+    cacheEvents: EventsDataCollection | undefined,
   ): void {
     const inheritedCapturesTarget =
       targetEvents._eventCaptureKeys?.inheritedCaptures;
@@ -227,7 +227,7 @@ class EventsFactory implements EventsFactoryData {
       this._handleParentToChildCapture(enteredCache, target, targetEvents);
     } else if (
       inheritedCapturesCache?.has(
-        targetEvents._eventCaptureKeys?.ownCapture ?? ""
+        targetEvents._eventCaptureKeys?.ownCapture ?? "",
       )
     ) {
       this._handleChildToParentCapture(ev, enteredCache, target, targetEvents);
@@ -240,7 +240,7 @@ class EventsFactory implements EventsFactoryData {
   private _handleParentToChildCapture(
     enteredCache: HTMLElementExtended,
     target: HTMLElementExtended,
-    targetEvents: EventsDataCollection
+    targetEvents: EventsDataCollection,
   ): void {
     const targetEnterEventUUID = targetEvents?.mouseenter;
     const cacheEnterEventUUID = enteredCache._eventsDataCollection?.mouseenter;
@@ -257,7 +257,7 @@ class EventsFactory implements EventsFactoryData {
     ev: WindowEventMap[EventType],
     enteredCache: HTMLElementExtended,
     target: HTMLElementExtended,
-    targetEvents: EventsDataCollection
+    targetEvents: EventsDataCollection,
   ): void {
     const cacheLeaveEventUUID = enteredCache._eventsDataCollection?.mouseleave;
     const targetLeaveEventUUID = targetEvents?.mouseleave;
@@ -275,7 +275,7 @@ class EventsFactory implements EventsFactoryData {
     ev: WindowEventMap[EventType],
     enteredCache: HTMLElementExtended,
     target: HTMLElementExtended,
-    targetEvents: EventsDataCollection
+    targetEvents: EventsDataCollection,
   ): void {
     const cacheLeaveEventUUID = enteredCache._eventsDataCollection?.mouseleave;
 
@@ -284,7 +284,7 @@ class EventsFactory implements EventsFactoryData {
       !this._isInheritEvent(
         enteredCache._eventsDataCollection._uniqueNodeEventKey,
         "mouseleave",
-        cacheLeaveEventUUID
+        cacheLeaveEventUUID,
       )
     ) {
       this._emitListeners(ev, enteredCache, "mouseleave", cacheLeaveEventUUID);
@@ -295,9 +295,9 @@ class EventsFactory implements EventsFactoryData {
     if (
       targetEnterEventUUID &&
       !this._isInheritEvent(
-        targetEvents._uniqueNodeEventKey,
+        targetEvents._nodeEventKey,
         "mouseenter",
-        targetEnterEventUUID
+        targetEnterEventUUID,
       )
     ) {
       this._targetsCachedNodes.entered = null;
@@ -320,7 +320,7 @@ class EventsFactory implements EventsFactoryData {
       createCustomListener("mousemove", [
         this._controllers.mouseEnterController,
         this._controllers.mouseLeaveController,
-      ])
+      ]),
     );
 
     this._customListeners = {
@@ -335,7 +335,7 @@ class EventsFactory implements EventsFactoryData {
         ]),
         createCustomListener("mousemove", [
           this._controllers.mouseDragController,
-        ])
+        ]),
       ),
     };
   }
@@ -343,7 +343,7 @@ class EventsFactory implements EventsFactoryData {
   private _isInheritEvent(
     eventNodeKey: string,
     eventType: GlobalEventType,
-    eventUUID: UUID | undefined
+    eventUUID: UUID | undefined,
   ): boolean {
     return (
       this._eventsListenerMap.get(eventType)?.get(eventUUID as UUID)
@@ -361,14 +361,15 @@ class EventsFactory implements EventsFactoryData {
 
   private _ensureEventsDataCollection(
     node: HTMLElementExtended,
+    eventType: GlobalEventType,
     uniqueNodeEventKey: string | null = null,
-    cbArgs: { [key: string]: Array<any> } | null = null
+    inheritCbArgs: { [key: string]: Array<any> } | null = null,
   ): EventsDataCollection {
     if (!node.hasOwnProperty(EVENT_DATA_COLLECTION)) {
       const eventsDataCollection: EventsDataCollection = {
         _eventCaptureKeys: null,
-        _uniqueNodeEventKey: uniqueNodeEventKey ?? randomUUID(),
-        _cbArgs: cbArgs,
+        _nodeEventKey: uniqueNodeEventKey ?? randomKey(),
+        _cbArgs: inheritCbArgs,
       };
 
       Object.defineProperty(node, EVENT_DATA_COLLECTION, {
@@ -380,9 +381,6 @@ class EventsFactory implements EventsFactoryData {
     }
 
     // @ts-ignore
-    cbArgs && Object.assign(node._eventsDataCollection._cbArgs, cbArgs);
-
-    // @ts-ignore
     return node._eventsDataCollection;
   }
 
@@ -391,18 +389,19 @@ class EventsFactory implements EventsFactoryData {
     eventType: GlobalEventType,
     uuid: UUID,
     uniqueNodeEventKey: string | null = null,
-    cbArgs: { [key: string]: Array<any> } | null = null,
+    inheritCbArgs: { [key: string]: Array<any> } | null = null,
     parentRootCaptureKey: string | null = null,
     parentInheritedCaptureKey: Set<string> | null = null,
-    parentOwnCaptureKey: string | null = null
+    parentOwnCaptureKey: string | null = null,
   ): void {
     const isMouseEnterOrLeaveEvent =
       eventType === "mouseenter" || eventType === "mouseleave";
 
     const eventsDataCollection = this._ensureEventsDataCollection(
       node,
+      eventType,
       uniqueNodeEventKey,
-      cbArgs
+      inheritCbArgs,
     );
 
     if (isMouseEnterOrLeaveEvent && !eventsDataCollection._eventCaptureKeys) {
@@ -426,6 +425,9 @@ class EventsFactory implements EventsFactoryData {
     }
 
     if (!eventsDataCollection.hasOwnProperty(eventType)) {
+      if (inheritCbArgs && node._eventsDataCollection?._cbArgs) {
+        Object.assign(node._eventsDataCollection._cbArgs, inheritCbArgs);
+      }
       eventsDataCollection[eventType] = uuid;
     }
   }
@@ -438,7 +440,7 @@ class EventsFactory implements EventsFactoryData {
       "click",
       this.eventTriggerEmitter((ev: any) => {
         this._targetsCachedNodes.focused = ev.target as HTMLElementExtended;
-      })
+      }),
     );
 
     setToMap(this._eventsListenerMap, "click", new Map());
@@ -447,7 +449,7 @@ class EventsFactory implements EventsFactoryData {
   private _invokeListenerWithArgsIfHas(
     ev: WindowEventMap[EventType],
     node: HTMLElementExtended,
-    listener: EventListener<EventType>
+    listener: EventListener<EventType>,
   ): void {
     const args = node._eventsDataCollection?._cbArgs;
     if (!args || !listener._cbEventBundle) {
@@ -455,7 +457,11 @@ class EventsFactory implements EventsFactoryData {
       return;
     }
 
-    const cbArgs = args[listener._cbEventBundle.key];
+    const bundleKey = Object.keys(args).find((key) =>
+      key.startsWith(`${listener._cbEventBundle?.key}.`),
+    );
+    const cbArgs = bundleKey && args[bundleKey];
+
     if (cbArgs) {
       listener.apply(null, [ev, ...cbArgs]);
     }
@@ -465,23 +471,22 @@ class EventsFactory implements EventsFactoryData {
     ev: WindowEventMap[T],
     node: HTMLElementExtended,
     eventType: GlobalEventType,
-    eventUUID: UUID
+    eventUUID: UUID,
   ): void {
-    const listeners = this._eventsListenerMap
-      .get(eventType)
-      ?.get(eventUUID)?.listeners;
+    const listeners = this._eventsListenerMap.get(eventType)?.get(eventUUID)
+      ?.listeners;
 
     listeners &&
       (listeners.length === 1
         ? this._invokeListenerWithArgsIfHas(ev, node, listeners[0])
         : listeners.forEach((handler) =>
-            this._invokeListenerWithArgsIfHas(ev, node, handler)
+            this._invokeListenerWithArgsIfHas(ev, node, handler),
           ));
   }
 
   private _emitCustomListeners<T extends keyof WindowEventMap>(
     ev: WindowEventMap[T],
-    eventType: EventType
+    eventType: EventType,
   ): void {
     this._controllerEvents
       .get(eventType)
@@ -489,7 +494,7 @@ class EventsFactory implements EventsFactoryData {
   }
 
   private _handlerEventListener<T extends keyof WindowEventMap>(
-    ev: WindowEventMap[T]
+    ev: WindowEventMap[T],
   ): void {
     const target =
       ev instanceof KeyboardEvent
@@ -514,8 +519,8 @@ class EventsFactory implements EventsFactoryData {
         __DOC__,
         type,
         this.eventTriggerEmitter((ev: any) =>
-          this._emitCustomListeners(ev, type as EventType)
-        )
+          this._emitCustomListeners(ev, type as EventType),
+        ),
       );
       this._eventsListenerMap.set(type, new Map());
     }
@@ -531,7 +536,7 @@ class EventsFactory implements EventsFactoryData {
     listeners.length === 1
       ? this._setupCustomEvent(listeners[0])
       : controllers.listeners.forEach((listener) =>
-          this._setupCustomEvent(listener)
+          this._setupCustomEvent(listener),
         );
   }
 
@@ -545,16 +550,17 @@ class EventsFactory implements EventsFactoryData {
   }
 
   private _getInterfaceEventMap(
-    eventType: GlobalEventType
-  ): EventInterfaceMap<EventType> | undefined {
+    eventType: GlobalEventType,
+  ): EventInterfaceMap<EventType> {
+    // @ts-ignore
     return setToMap(this._eventsListenerMap, eventType, new Map()).get(
-      eventType
+      eventType,
     );
   }
 
   private _hasNode(
     eventUUID: UUID | undefined,
-    interfaceEventMap: EventInterfaceMap<EventType> | undefined
+    interfaceEventMap: EventInterfaceMap<EventType> | undefined,
   ): boolean {
     return !!(eventUUID && interfaceEventMap?.has(eventUUID));
   }
@@ -564,7 +570,7 @@ class EventsFactory implements EventsFactoryData {
     node: HTMLElementExtended,
     listener: EventListener<EventType>,
     listenerCbEventBundle: CallbackEventBundle | undefined,
-    interfaceEventMap: EventInterfaceMap<EventType> | undefined
+    interfaceEventMap: EventInterfaceMap<EventType>,
   ): void {
     if (!listenerCbEventBundle) {
       const uuid = randomUUID();
@@ -572,6 +578,7 @@ class EventsFactory implements EventsFactoryData {
       interfaceEventMap?.set(uuid, {
         // @ts-ignore
         eventNodeKey: node._eventsDataCollection._uniqueNodeEventKey,
+        count: 1,
         listeners: [listener],
       });
     } else {
@@ -580,7 +587,7 @@ class EventsFactory implements EventsFactoryData {
         node,
         listener,
         listenerCbEventBundle,
-        interfaceEventMap
+        interfaceEventMap,
       );
     }
   }
@@ -590,45 +597,55 @@ class EventsFactory implements EventsFactoryData {
     node: HTMLElementExtended,
     listener: EventListener<EventType>,
     listenerCbEventBundle: CallbackEventBundle,
-    interfaceEventMap: EventInterfaceMap<EventType> | undefined
+    interfaceEventMap: EventInterfaceMap<EventType>,
   ): void {
     if (!listenerCbEventBundle.eventType || !listenerCbEventBundle.eventUUID) {
       listenerCbEventBundle.eventType = eventType;
       listenerCbEventBundle.eventUUID = randomUUID();
+
       interfaceEventMap?.set(listenerCbEventBundle.eventUUID, {
         eventNodeKey: randomKey(),
+        count: 0,
         listeners: [listener],
       });
     }
 
-    const eventNodeKey = interfaceEventMap?.get(
-      listenerCbEventBundle.eventUUID
-    )?.eventNodeKey;
-    const cbArgs = node._eventsDataCollection?._cbArgs ?? {};
+    const {
+      eventType: bundleEventType,
+      eventUUID: bundleEventUUID,
+      key,
+    } = listenerCbEventBundle;
+    const eventInterface = interfaceEventMap?.get(bundleEventUUID);
+    const eventNodeKey = eventInterface?.eventNodeKey;
 
-    cbArgs[listenerCbEventBundle.key] = listener._args ?? [];
+    const cbArgs = node._eventsDataCollection?._cbArgs ?? {};
+    cbArgs[key + `.${bundleEventType}`] = listener._args ?? [];
+
+    if (eventInterface) {
+      eventInterface.count++;
+    }
 
     this._configEventsUUID(
       node,
-      listenerCbEventBundle.eventType,
-      listenerCbEventBundle.eventUUID,
+      bundleEventType,
+      bundleEventUUID,
       eventNodeKey,
-      cbArgs
+      cbArgs,
     );
   }
 
   private _handleExistingNode(
     eventUUID: UUID | undefined,
     listener: EventListener<EventType>,
-    interfaceEventMap: EventInterfaceMap<EventType> | undefined
+    interfaceEventMap: EventInterfaceMap<EventType>,
   ): void {
-    eventUUID && interfaceEventMap?.get(eventUUID)?.listeners.push(listener);
+    eventUUID && interfaceEventMap.get(eventUUID)?.listeners.push(listener);
   }
 
   public addEvent(
     eventType: GlobalEventType,
     node: HTMLElementExtended,
-    listener: EventListener<EventType>
+    listener: EventListener<EventType>,
   ): void {
     if (this.isCustomEvent(eventType)) {
       this._configCustomEvents(eventType as CustomEventType);
@@ -644,7 +661,7 @@ class EventsFactory implements EventsFactoryData {
         node,
         listener,
         listenerCbEventBundle,
-        interfaceEventMap
+        interfaceEventMap,
       );
     } else {
       this._handleExistingNode(eventUUID, listener, interfaceEventMap);
@@ -654,7 +671,7 @@ class EventsFactory implements EventsFactoryData {
   public addInheritEvent(
     eventType: GlobalEventType,
     node: HTMLElementExtended,
-    parent: HTMLElementExtended
+    parent: HTMLElementExtended,
   ): void {
     const parentEventsDataCollection = parent?._eventsDataCollection;
     const eventUUID = parentEventsDataCollection?.[eventType];
@@ -667,16 +684,21 @@ class EventsFactory implements EventsFactoryData {
       parentEventsDataCollection._eventCaptureKeys?.inheritedCaptures;
     const parentOwnCaptureKey =
       parentEventsDataCollection._eventCaptureKeys?.ownCapture;
+    const cbArgs = parentEventsDataCollection._cbArgs;
+
+    // prettier-ignore
+    const bundleKey = cbArgs && Object.keys(cbArgs).find((key) => key.endsWith(`.${eventType}`));
+    const inheritCbArgs = bundleKey ? { [bundleKey]: cbArgs[bundleKey] } : null;
 
     this._configEventsUUID(
       node,
       eventType,
       eventUUID,
       null,
-      parentEventsDataCollection._cbArgs,
+      inheritCbArgs,
       parentRootCaptureKey,
       parentInheritedCaptureKey,
-      parentOwnCaptureKey
+      parentOwnCaptureKey,
     );
   }
 
@@ -689,7 +711,7 @@ class EventsFactory implements EventsFactoryData {
   }
 
   public eventTriggerEmitter(
-    callback?: Function
+    callback?: Function,
   ): <T extends keyof WindowEventMap>(ev: WindowEventMap[T]) => void {
     return (ev) => {
       if (
@@ -708,11 +730,9 @@ class EventsFactory implements EventsFactoryData {
   public removeEvent(
     eventType: GlobalEventType,
     node: HTMLElementExtended,
-    listener?: EventListener<EventType>
+    listener?: EventListener<EventType>,
   ): boolean {
     if (!this._eventsListenerMap.has(eventType)) return false;
-
-    console.log(this._eventsListenerMap);
 
     return true;
   }
@@ -732,6 +752,7 @@ class EventsFactory implements EventsFactoryData {
 declare global {
   interface Window {
     fac: any;
+    on: any;
   }
 }
 
@@ -743,7 +764,7 @@ function addListener(
   node: HTMLElementExtended | Document,
   eventType: GlobalEventType,
   handler: EventListener<EventType>,
-  options?: boolean | AddEventListenerOptions | undefined
+  options?: boolean | AddEventListenerOptions | undefined,
 ): void {
   node &&
     node.addEventListener &&
@@ -754,7 +775,7 @@ export function on(
   eventType: GlobalEventType,
   node: HTMLElementExtended | Document,
   listener: EventListener<EventType>,
-  ignoreDocument: boolean = false
+  ignoreDocument: boolean = false,
 ): void {
   if (ignoreDocument) {
     addListener(node, eventType, listener);
@@ -772,10 +793,12 @@ export function on(
     eventsFactory.addEvent(eventType, node, listener);
 }
 
+window.on = on;
+
 export function off(
   eventType: GlobalEventType,
   node: HTMLElementExtended,
-  listener?: EventListener<EventType>
+  listener?: EventListener<EventType>,
 ): void {
   eventsFactory.removeEvent(eventType, node, listener);
 }
@@ -783,7 +806,7 @@ export function off(
 export function inheritOn(
   eventType: GlobalEventType,
   node: HTMLElementExtended,
-  parent: HTMLElementExtended
+  parent: HTMLElementExtended,
 ): any {
   eventsFactory.addInheritEvent(eventType, node, parent);
 }
