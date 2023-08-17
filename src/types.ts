@@ -19,7 +19,7 @@ export interface EventsFactoryData {
 }
 
 export interface HTMLElementExtended extends HTMLElement {
-  readonly __eventsUUIDCollection?: EventsUUIDCollection;
+  readonly _eventsDataCollection?: EventsDataCollection;
 }
 
 // export interface HTMLElementExtended extends HTMLElement, ElementExtended {}
@@ -28,20 +28,28 @@ type EventsUUID = {
   [eventType in GlobalEventType]?: UUID;
 };
 
-export type EventsUUIDCollection = EventsUUID & {
-  eventCaptureKeys: {
-    inheritedCaptures: Set<string>;
-    ownCapture: string;
-    root: string;
-  } | null;
+export type EventCapture = {
+  inheritedCaptures: Set<string>;
+  ownCapture: string;
+  root: string;
 };
+
+export type EventsDataCollection = EventsUUID & {
+  _eventCaptureKeys: EventCapture | null;
+  _uniqueNodeEventId: UUID;
+  _cbArgs: { [key: string]: Array<any> } | null;
+};
+
+export type CustomListener = {
+  type: GlobalEventType;
+  value: EventListenerCollection<keyof WindowEventMap>;
+};
+
+export type CustomListenerControllerCollection = Array<CustomListener>;
 
 export type CustomListenerController = {
   isUse: boolean;
-  listeners: Array<{
-    type: GlobalEventType;
-    value: Array<EventListener<keyof WindowEventMap>>;
-  }>;
+  listeners: CustomListenerControllerCollection;
 };
 
 export type CustomListeners = {
@@ -55,7 +63,17 @@ export type CustomEventType = keyof CustomListeners;
 
 export type GlobalEventType = EventType | CustomEventType;
 
-export type EventListener<T extends EventType> = (ev: WindowEventMap[T]) => any;
+export type CallbackEventBundle = {
+  key: string;
+  eventType: GlobalEventType | null;
+  eventUUID: UUID | null;
+};
+
+export type EventListener<T extends EventType> = {
+  (ev: WindowEventMap[T]): any;
+  _cbEventBundle?: CallbackEventBundle;
+  _args?: Array<any>;
+};
 
 export type EventListenerCollection<T extends EventType> = Array<
   EventListener<T>
