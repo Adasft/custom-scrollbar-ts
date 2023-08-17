@@ -205,9 +205,7 @@ class EventsFactory implements EventsFactoryData {
     }
 
     if (targetEvents.mouseenter) {
-      // console.log(targetEvents);
       this._targetsCachedNodes.entered = null;
-      // this._controllers.mouseEnterController(ev);
     }
   }
 
@@ -669,7 +667,7 @@ class EventsFactory implements EventsFactoryData {
       parentEventsDataCollection._eventCaptureKeys?.inheritedCaptures;
     const parentOwnCaptureKey =
       parentEventsDataCollection._eventCaptureKeys?.ownCapture;
-    console.log(eventType, parentEventsDataCollection._cbArgs);
+
     this._configEventsUUID(
       node,
       eventType,
